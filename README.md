@@ -1,14 +1,23 @@
-# WARNING: This repository is no longer maintained :warning:
+# ProcessWire GUID Generator (Fork)
 
-> This repository will not be updated. The repository will be kept available in read-only mode.
+**Designed (tested) for use with ProcessWire 3.0.247**
 
-# ProcessWire GUID Generator
+## Description
 
-**Designed for use with ProcessWire 3.x**
+Generate a globally unique identifier (GUID) from within a single Inputfield **Text**.
 
-## About
+**NEW** The GUID/UUID is now generated when a page is **created** and is unique for the field.
+Prior function to generate a GUID/UUID when field form was rendered the first time still exists
+It is not possible to change the GUID/UUID after the page has been created.
 
-Generate a globally unique identifier (GUID) for Inputfield **Text**.
+
+## Installation
+
+1. Copy the module files to the `site/modules` directory.
+2. Refresh the module cache from the admin panel.
+3. Install the module from the admin panel.
+4. Create a new field of type **Text**.
+5. Enable the **Generate GUID** option.
 
 ## Usage
 
@@ -18,5 +27,17 @@ It extends downwards and reveals a form to enable automatic GUID generation.
 After having enabled GUID generation for a text field, edit a page which has a template containing this field.
 You'll see the field filled with a GUID.
 
-![Edit field](field.png)
-![Edit page](page.png)
+![Edit field](screenshots/field.png)
+
+![Edit page](screenshots/page.png)
+
+## Requirements
+
+- ProcessWire>=3.0.247
+- PHP>=8.2
+
+Those are the versions the fork was tested with.
+
+## License
+
+MIT License [see LICENSE](LICENSE)

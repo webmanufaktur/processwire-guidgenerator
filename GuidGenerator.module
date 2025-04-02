@@ -1,12 +1,19 @@
 <?php namespace ProcessWire;
 
 /**
-* GuidGenerator
+* GUID Generator
 *
 * See README.md for usage instructions.
 *
+* Forked Version
+* @author Alexander Abelt 
+* @version 0.0.2
+* @copyright Copyright (c) 2025 (MIT)
+* @see https://github.com/webmanufaktur/processwire-guidgenerator
+*
+* Original Version
 * @author Tabea David <td@kf-interactive.com>
-* @version 0.0.1
+* @version 0.0.2
 * @copyright Copyright (c) 2017
 * @see https://github.com/justonestep/processwire-guidgenerator
 * @see http://www.processwire.com
@@ -28,10 +35,16 @@ class GuidGenerator extends WireData implements Module {
     return array(
       'title' => 'GUID / UUID Generator',
       'summary' => 'Generate a globally unique identifier (GUID)',
-      'version' => 001,
-      'href' => 'https://github.com/justonestep/processwire-guidgenerator',
+      'version' => 003,
+      'href' => 'https://github.com/webmanufaktur/processwire-guidgenerator',
       'singular' => true,
       'autoload' => true,
+      'requires' => [
+        'ProcessWire>=3.0.247',
+        'PHP>=8.2',
+      ],
+      'icon' => 'anchor',
+      'author' => 'Alexander Abelt (wbmnfktr)',
     );
   }
 
@@ -47,6 +60,7 @@ class GuidGenerator extends WireData implements Module {
     $this->addHookProperty('InputfieldText::generateGuid', $this, 'addProperty');
     $this->addHookAfter('InputfieldText::getConfigInputfields', $this, 'addInputfield');
     $this->addHookBefore('InputfieldText::render', $this, 'generateGuidValue');
+    $this->addHookAfter('Pages::added', $this, 'generateGuidOnCreate');
   }
 
   /**
@@ -72,7 +86,7 @@ class GuidGenerator extends WireData implements Module {
     $field = $this->modules->get('InputfieldCheckbox');
     $field->attr('name', 'generateGuid');
     $field->label = $this->_('Generate GUID');
-    $field->description = $this->_('When checked, a globally unique identifier (GUID) wil be generated when the form is rendered.');
+    $field->description = $this->_('When checked, a globally unique identifier (GUID) will be generated when the page is created or viewed for the first time.');
     $field->attr('value', 1);
 
     if ($data->generateGuid) {
@@ -107,6 +121,44 @@ class GuidGenerator extends WireData implements Module {
       $field->set('value', $guid);
       $page->setAndSave($field->name, $guid);
     }
+  }
+
+  /**
+   * Assign a GUID when a page is created
+   *
+   * @param HookEvent $event
+   */
+  public function generateGuidOnCreate(HookEvent $event) {
+    $page = $event->arguments[0];
+    
+    // Get all fields for this page
+    $fields = $page->getFields();
+    
+    foreach($fields as $field) {
+      // Skip if not a text field
+      if(!$field->type instanceof FieldtypeText) continue;
+      
+      // Skip if the field doesn't have the generateGuid option enabled
+      if(!$field->generateGuid) continue;
+      
+      // Skip if the field already has a value
+      if($page->get($field->name)) continue;
+      
+      // Generate a GUID
+      $guid = $this->createGUID();
+      
+      // Check uniqueness
+      if($this->pages->count("{$field->name}={$guid}")) {
+        // Try again with a new GUID
+        $guid = $this->createGUID();
+      }
+      
+      // Set the GUID value
+      $page->set($field->name, $guid);
+    }
+    
+    // Save the page with the new GUID(s)
+    $page->save();
   }
 
   /**
