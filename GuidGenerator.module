@@ -7,7 +7,6 @@
 *
 * Forked Version
 * @author Alexander Abelt 
-* @version 0.0.4
 * @copyright Copyright (c) 2025 (MIT)
 * @see https://github.com/webmanufaktur/processwire-guidgenerator
 *
@@ -34,8 +33,8 @@ class GuidGenerator extends WireData implements Module {
   public static function getModuleInfo() {
     return array(
       'title' => 'GUID / UUID Generator',
-      'summary' => 'Generate a globally unique identifier (GUID) or custom format identifiers',
-      'version' => 004,
+      'summary' => 'Generate a globally unique identifier (GUID) or choose from custom format identifiers',
+      'version' => 007,
       'href' => 'https://github.com/webmanufaktur/processwire-guidgenerator',
       'singular' => true,
       'autoload' => true,
@@ -59,6 +58,8 @@ class GuidGenerator extends WireData implements Module {
   public function ready() {
     $this->addHookProperty('InputfieldText::generateGuid', $this, 'addProperty');
     $this->addHookProperty('InputfieldText::guidFormat', $this, 'addFormatProperty');
+    $this->addHookProperty('InputfieldText::useGuidPrefix', $this, 'addUsePrefixProperty');
+    $this->addHookProperty('InputfieldText::guidPrefix', $this, 'addPrefixProperty');
     $this->addHookAfter('InputfieldText::getConfigInputfields', $this, 'addInputfield');
     $this->addHookBefore('InputfieldText::render', $this, 'generateGuidValue');
     $this->addHookAfter('Pages::added', $this, 'generateGuidOnCreate');
@@ -80,6 +81,24 @@ class GuidGenerator extends WireData implements Module {
    */
   public function addFormatProperty(HookEvent $event) {
     $event->return = 'uuid';
+  }
+
+  /**
+   * Add useGuidPrefix property for inputfield text
+   *
+   * @param HookEvent $event
+   */
+  public function addUsePrefixProperty(HookEvent $event) {
+    $event->return = 0;
+  }
+
+  /**
+   * Add guidPrefix property for inputfield text
+   *
+   * @param HookEvent $event
+   */
+  public function addPrefixProperty(HookEvent $event) {
+    $event->return = 'GUID-';
   }
 
   /**
@@ -127,6 +146,42 @@ class GuidGenerator extends WireData implements Module {
       
       $event->return->append($formatField);
     }
+    
+    // Add prefix options
+    if ($data->generateGuid) {
+      /** @var InputfieldCheckbox $prefixField */
+      $prefixField = $this->modules->get('InputfieldCheckbox');
+      $prefixField->attr('name', 'useGuidPrefix');
+      $prefixField->label = $this->_('Use GUID Prefix');
+      $prefixField->description = $this->_('When checked, the generated identifier will include a prefix.');
+      $prefixField->attr('value', 1);
+      
+      if ($data->useGuidPrefix) {
+        $prefixField->attr('checked', 'checked');
+      }
+      
+      $event->return->append($prefixField);
+      
+      /** @var InputfieldText $prefixValueField */
+      $prefixValueField = $this->modules->get('InputfieldText');
+      $prefixValueField->attr('name', 'guidPrefix');
+      $prefixValueField->label = $this->_('GUID Prefix');
+      $prefixValueField->description = $this->_('Enter the prefix to be added to the generated identifier.');
+      
+      // Set default value if not already set
+      if ($data->guidPrefix !== null) {
+        $prefixValueField->attr('value', $data->guidPrefix);
+      } else {
+        $prefixValueField->attr('value', 'GUID-');
+      }
+      
+      // Show only if prefix is enabled
+      if (!$data->useGuidPrefix) {
+        $prefixValueField->collapsed = Inputfield::collapsedYes;
+      }
+      
+      $event->return->append($prefixValueField);
+    }
   }
 
   /**
@@ -146,6 +201,12 @@ class GuidGenerator extends WireData implements Module {
     if (!$field->value) {
       $format = $field->guidFormat ?: 'uuid';
       $guid = $this->createGUID($format);
+      
+      // Add prefix if enabled
+      if ($field->useGuidPrefix) {
+        $prefix = $field->guidPrefix !== null ? $field->guidPrefix : 'GUID-';
+        $guid = $prefix . $guid;
+      }
 
       // check uniqueness
       if ($this->pages->count("{$field->name}={$guid}")) $this->generateGuidValue($event);
@@ -182,10 +243,22 @@ class GuidGenerator extends WireData implements Module {
       // Generate a GUID
       $guid = $this->createGUID($format);
       
+      // Add prefix if enabled
+      if ($field->useGuidPrefix) {
+        $prefix = $field->guidPrefix !== null ? $field->guidPrefix : 'GUID-';
+        $guid = $prefix . $guid;
+      }
+      
       // Check uniqueness
       if($this->pages->count("{$field->name}={$guid}")) {
         // Try again with a new GUID
         $guid = $this->createGUID($format);
+        
+        // Add prefix if enabled (for the new GUID)
+        if ($field->useGuidPrefix) {
+          $prefix = $field->guidPrefix !== null ? $field->guidPrefix : 'GUID-';
+          $guid = $prefix . $guid;
+        }
       }
       
       // Set the GUID value
