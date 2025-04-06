@@ -10,6 +10,15 @@ Generate a globally unique identifier (GUID) from within a single Inputfield **T
 Prior function to generate a GUID/UUID when field form was rendered the first time still exists
 It is not possible to change the GUID/UUID after the page has been created.
 
+## Features
+
+- Standard UUID/GUID format (xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
+- 32-digit alphanumeric format
+- 64-digit alphanumeric format
+- 128-digit alphanumeric format
+- Optional prefix for all identifier formats (default: "GUID-")
+- Automatic generation on page creation
+- Guaranteed uniqueness within the field
 
 ## Installation
 

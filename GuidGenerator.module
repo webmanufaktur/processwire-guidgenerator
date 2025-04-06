@@ -34,7 +34,7 @@ class GuidGenerator extends WireData implements Module {
     return array(
       'title' => 'GUID / UUID Generator',
       'summary' => 'Generate a globally unique identifier (GUID) or choose from custom format identifiers',
-      'version' => 007,
+      'version' => '0.1.0',
       'href' => 'https://github.com/webmanufaktur/processwire-guidgenerator',
       'singular' => true,
       'autoload' => true,
@@ -133,9 +133,12 @@ class GuidGenerator extends WireData implements Module {
       $formatField->attr('name', 'guidFormat');
       $formatField->label = $this->_('GUID Format');
       $formatField->description = $this->_('Select the format for the generated identifier.');
+      $formatField->columnWidth = 33;
       
       $formatField->addOption('uuid', $this->_('Standard UUID/GUID (xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)'));
-      $formatField->addOption('alphanumeric25', $this->_('25-digit Alphanumeric'));
+      $formatField->addOption('alphanumeric32', $this->_('32-digit Alphanumeric'));
+      $formatField->addOption('alphanumeric64', $this->_('64-digit Alphanumeric'));
+      $formatField->addOption('alphanumeric128', $this->_('128-digit Alphanumeric'));
       
       // Set default value if not already set
       if ($data->guidFormat) {
@@ -155,6 +158,7 @@ class GuidGenerator extends WireData implements Module {
       $prefixField->label = $this->_('Use GUID Prefix');
       $prefixField->description = $this->_('When checked, the generated identifier will include a prefix.');
       $prefixField->attr('value', 1);
+      $prefixField->columnWidth = 33;
       
       if ($data->useGuidPrefix) {
         $prefixField->attr('checked', 'checked');
@@ -167,6 +171,7 @@ class GuidGenerator extends WireData implements Module {
       $prefixValueField->attr('name', 'guidPrefix');
       $prefixValueField->label = $this->_('GUID Prefix');
       $prefixValueField->description = $this->_('Enter the prefix to be added to the generated identifier.');
+      $prefixValueField->columnWidth = 33;
       
       // Set default value if not already set
       if ($data->guidPrefix !== null) {
@@ -176,9 +181,9 @@ class GuidGenerator extends WireData implements Module {
       }
       
       // Show only if prefix is enabled
-      if (!$data->useGuidPrefix) {
-        $prefixValueField->collapsed = Inputfield::collapsedYes;
-      }
+      // if (!$data->useGuidPrefix) {
+      //   $prefixValueField->collapsed = Inputfield::collapsedYes;
+      // }
       
       $event->return->append($prefixValueField);
     }
@@ -272,12 +277,20 @@ class GuidGenerator extends WireData implements Module {
   /**
    * Generate GUID
    * 
-   * @param string $format Format of the ID to generate (uuid or alphanumeric25)
+   * @param string $format Format of the ID to generate (uuid or alphanumeric32)
    * @return string The generated unique identifier
    */
   protected function createGUID($format = 'uuid') {
-    if ($format === 'alphanumeric25') {
-      return $this->createAlphanumeric25();
+    if ($format === 'alphanumeric32') {
+      return $this->createAlphanumeric32();
+    }
+    
+    if ($format === 'alphanumeric64') {
+      return $this->createAlphanumeric(64);
+    }
+    
+    if ($format === 'alphanumeric128') {
+      return $this->createAlphanumeric(128);
     }
     
     // Default to UUID format
@@ -299,18 +312,38 @@ class GuidGenerator extends WireData implements Module {
   }
   
   /**
-   * Generate a 25-digit alphanumeric identifier
+   * Generate a 32-digit alphanumeric identifier
    * 
-   * @return string The generated 25-digit alphanumeric identifier
+   * @return string The generated 32-digit alphanumeric identifier
    */
-  protected function createAlphanumeric25() {
+  protected function createAlphanumeric32() {
     $chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
     $result = '';
     
-    // Generate a random 25-character string using cryptographically secure random bytes
-    $bytes = random_bytes(25);
+    // Generate a random 32-character string using cryptographically secure random bytes
+    $bytes = random_bytes(32);
     
-    for ($i = 0; $i < 25; $i++) {
+    for ($i = 0; $i < 32; $i++) {
+      $result .= $chars[ord($bytes[$i]) % strlen($chars)];
+    }
+    
+    return $result;
+  }
+  
+  /**
+   * Generate an alphanumeric identifier of specified length
+   * 
+   * @param int $length The length of the identifier to generate
+   * @return string The generated alphanumeric identifier
+   */
+  protected function createAlphanumeric($length) {
+    $chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    $result = '';
+    
+    // Generate a random string of specified length using cryptographically secure random bytes
+    $bytes = random_bytes($length);
+    
+    for ($i = 0; $i < $length; $i++) {
       $result .= $chars[ord($bytes[$i]) % strlen($chars)];
     }
     
