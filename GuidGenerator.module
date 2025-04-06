@@ -7,7 +7,7 @@
 *
 * Forked Version
 * @author Alexander Abelt 
-* @version 0.0.2
+* @version 0.0.4
 * @copyright Copyright (c) 2025 (MIT)
 * @see https://github.com/webmanufaktur/processwire-guidgenerator
 *
@@ -34,8 +34,8 @@ class GuidGenerator extends WireData implements Module {
   public static function getModuleInfo() {
     return array(
       'title' => 'GUID / UUID Generator',
-      'summary' => 'Generate a globally unique identifier (GUID)',
-      'version' => 003,
+      'summary' => 'Generate a globally unique identifier (GUID) or custom format identifiers',
+      'version' => 004,
       'href' => 'https://github.com/webmanufaktur/processwire-guidgenerator',
       'singular' => true,
       'autoload' => true,
@@ -58,6 +58,7 @@ class GuidGenerator extends WireData implements Module {
    */
   public function ready() {
     $this->addHookProperty('InputfieldText::generateGuid', $this, 'addProperty');
+    $this->addHookProperty('InputfieldText::guidFormat', $this, 'addFormatProperty');
     $this->addHookAfter('InputfieldText::getConfigInputfields', $this, 'addInputfield');
     $this->addHookBefore('InputfieldText::render', $this, 'generateGuidValue');
     $this->addHookAfter('Pages::added', $this, 'generateGuidOnCreate');
@@ -70,6 +71,15 @@ class GuidGenerator extends WireData implements Module {
    */
   public function addProperty(HookEvent $event) {
     $event->return = 0;
+  }
+
+  /**
+   * Add format property for inputfield text
+   *
+   * @param HookEvent $event
+   */
+  public function addFormatProperty(HookEvent $event) {
+    $event->return = 'uuid';
   }
 
   /**
@@ -96,6 +106,27 @@ class GuidGenerator extends WireData implements Module {
     }
 
     $event->return->append($field);
+    
+    // Add format selection field
+    if ($data->generateGuid) {
+      /** @var InputfieldSelect $formatField */
+      $formatField = $this->modules->get('InputfieldSelect');
+      $formatField->attr('name', 'guidFormat');
+      $formatField->label = $this->_('GUID Format');
+      $formatField->description = $this->_('Select the format for the generated identifier.');
+      
+      $formatField->addOption('uuid', $this->_('Standard UUID/GUID (xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)'));
+      $formatField->addOption('alphanumeric25', $this->_('25-digit Alphanumeric'));
+      
+      // Set default value if not already set
+      if ($data->guidFormat) {
+        $formatField->attr('value', $data->guidFormat);
+      } else {
+        $formatField->attr('value', 'uuid');
+      }
+      
+      $event->return->append($formatField);
+    }
   }
 
   /**
@@ -113,7 +144,8 @@ class GuidGenerator extends WireData implements Module {
 
     // empty field? generate GUID
     if (!$field->value) {
-      $guid = $this->createGUID();
+      $format = $field->guidFormat ?: 'uuid';
+      $guid = $this->createGUID($format);
 
       // check uniqueness
       if ($this->pages->count("{$field->name}={$guid}")) $this->generateGuidValue($event);
@@ -144,13 +176,16 @@ class GuidGenerator extends WireData implements Module {
       // Skip if the field already has a value
       if($page->get($field->name)) continue;
       
+      // Get the format
+      $format = $field->guidFormat ?: 'uuid';
+      
       // Generate a GUID
-      $guid = $this->createGUID();
+      $guid = $this->createGUID($format);
       
       // Check uniqueness
       if($this->pages->count("{$field->name}={$guid}")) {
         // Try again with a new GUID
-        $guid = $this->createGUID();
+        $guid = $this->createGUID($format);
       }
       
       // Set the GUID value
@@ -163,8 +198,16 @@ class GuidGenerator extends WireData implements Module {
 
   /**
    * Generate GUID
+   * 
+   * @param string $format Format of the ID to generate (uuid or alphanumeric25)
+   * @return string The generated unique identifier
    */
-  protected function createGUID() {
+  protected function createGUID($format = 'uuid') {
+    if ($format === 'alphanumeric25') {
+      return $this->createAlphanumeric25();
+    }
+    
+    // Default to UUID format
     if (function_exists('com_create_guid')){
         $guid = com_create_guid();
     } else {
@@ -180,5 +223,24 @@ class GuidGenerator extends WireData implements Module {
     }
 
     return $guid;
+  }
+  
+  /**
+   * Generate a 25-digit alphanumeric identifier
+   * 
+   * @return string The generated 25-digit alphanumeric identifier
+   */
+  protected function createAlphanumeric25() {
+    $chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    $result = '';
+    
+    // Generate a random 25-character string using cryptographically secure random bytes
+    $bytes = random_bytes(25);
+    
+    for ($i = 0; $i < 25; $i++) {
+      $result .= $chars[ord($bytes[$i]) % strlen($chars)];
+    }
+    
+    return $result;
   }
 }
